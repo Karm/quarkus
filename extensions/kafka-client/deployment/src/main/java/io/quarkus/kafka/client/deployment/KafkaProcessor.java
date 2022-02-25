@@ -88,6 +88,7 @@ import io.quarkus.kafka.client.serialization.JsonbDeserializer;
 import io.quarkus.kafka.client.serialization.JsonbSerializer;
 import io.quarkus.kafka.client.serialization.ObjectMapperDeserializer;
 import io.quarkus.kafka.client.serialization.ObjectMapperSerializer;
+import io.quarkus.runtime.graal.IsFIPSEnabled;
 import io.quarkus.smallrye.health.deployment.spi.HealthBuildItem;
 
 public class KafkaProcessor {
@@ -519,6 +520,12 @@ public class KafkaProcessor {
                 new RuntimeInitializedClassBuildItem("org.apache.kafka.common.security.authenticator.SaslClientAuthenticator"));
         producer.produce(new RuntimeInitializedClassBuildItem(
                 "org.apache.kafka.common.security.oauthbearer.internals.expiring.ExpiringCredentialRefreshingLogin"));
+    }
+
+    @BuildStep(onlyIf = IsFIPSEnabled.class)
+    public void registerRuntimeInitializedSunPKCSProvider(BuildProducer<RuntimeInitializedClassBuildItem> producer) {
+        producer.produce(new RuntimeInitializedClassBuildItem(
+                "org.apache.kafka.common.security.ssl.DefaultSslEngineFactory$PemStore"));
     }
 
     @BuildStep
