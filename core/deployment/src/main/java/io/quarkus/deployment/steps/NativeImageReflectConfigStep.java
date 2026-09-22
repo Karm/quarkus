@@ -203,23 +203,14 @@ public class NativeImageReflectConfigStep {
                 if (classBuildItem.isPublicConstructors()) {
                     existing.publicConstructors = true;
                 }
-                if (classBuildItem.isQueryConstructors()) {
-                    existing.queryConstructors = true;
-                }
                 if (classBuildItem.isMethods()) {
                     existing.methods = true;
                 }
                 if (classBuildItem.isPublicMethods()) {
                     existing.publicMethods = true;
                 }
-                if (classBuildItem.isQueryMethods()) {
-                    existing.queryMethods = true;
-                }
                 if (classBuildItem.isFields()) {
                     existing.fields = true;
-                }
-                if (classBuildItem.isClasses()) {
-                    existing.classes = true;
                 }
                 if (classBuildItem.isSerialization()) {
                     existing.serialization = true;
@@ -253,12 +244,9 @@ public class NativeImageReflectConfigStep {
     static final class ReflectionInfo {
         boolean constructors;
         boolean publicConstructors;
-        boolean queryConstructors;
         boolean methods;
         boolean publicMethods;
-        boolean queryMethods;
         boolean fields;
-        boolean classes;
         boolean serialization;
         boolean unsafeAllocated;
         Set<String> reasons = null;
@@ -273,9 +261,7 @@ public class NativeImageReflectConfigStep {
         private ReflectionInfo(ReflectiveClassBuildItem classBuildItem, String typeReached) {
             this.methods = classBuildItem.isMethods();
             this.publicMethods = classBuildItem.isPublicMethods();
-            this.queryMethods = classBuildItem.isQueryMethods();
             this.fields = classBuildItem.isFields();
-            this.classes = classBuildItem.isClasses();
             this.typeReached = typeReached;
             this.constructors = classBuildItem.isConstructors();
             this.publicConstructors = classBuildItem.isPublicConstructors();

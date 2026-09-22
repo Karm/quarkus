@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,68 +17,56 @@ import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.GeneratedResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.LambdaReflectionBuildItem;
-import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.pkg.steps.NativeOrNativeSourcesBuild;
 
 /**
+ * Generates lambda reflection metadata for serializable lambdas in native mode.
+ * <p>
  * @formatter:off
  * Schema used:
  * <a href="https://github.com/graalvm/graalvm-community-jdk25u/blob/master/docs/reference-manual/native-image/assets/reachability-metadata-schema-v1.2.0.json">reachability-metadata-schema-v1.2.0.json</a>
  * <p>
  * See <a href="https://www.graalvm.org/latest/reference-manual/native-image/metadata/#serialization-metadata-registration-in-code">serialization-metadata</a>
+ * and <a href="https://github.com/oracle/graal/issues/13665">Lambda deserialization ergonomics</a>
  * Notes on proper testing: At least integration-tests modules main and native-image-annotations.
  * @formatter:on
  */
-public class NativeImageSerializationConfigStep {
+public class NativeImageLambdaReflectionConfigStep {
 
     private static final String JAVA_IO_SERIALIZABLE = "java.io.Serializable";
 
     @BuildStep(onlyIf = NativeOrNativeSourcesBuild.class)
-    void generateSerializationConfig(BuildProducer<GeneratedResourceBuildItem> serializationConfig,
-            List<ReflectiveClassBuildItem> reflectiveClassBuildItems,
+    void generateLambdaReflectionConfig(BuildProducer<GeneratedResourceBuildItem> lambdaReflectionConfig,
             List<LambdaReflectionBuildItem> lambdaReflectionBuildItems) {
 
-        final Set<String> serializableClasses = new HashSet<>();
         final Map<String, Set<LambdaReflectionBuildItem>> lambdasByDeclaringClass = new HashMap<>();
-
-        for (ReflectiveClassBuildItem i : reflectiveClassBuildItems) {
-            if (i.isSerialization()) {
-                Collections.addAll(serializableClasses, i.getClassNames().toArray(new String[0]));
-            }
-        }
 
         for (LambdaReflectionBuildItem lambda : lambdaReflectionBuildItems) {
             lambdasByDeclaringClass.computeIfAbsent(lambda.getDeclaringClass(), k -> new HashSet<>()).add(lambda);
         }
 
-        if (serializableClasses.isEmpty() && lambdasByDeclaringClass.isEmpty()) {
+        if (lambdasByDeclaringClass.isEmpty()) {
             return;
         }
 
         final JsonObjectBuilder root = Json.object();
-        final JsonArrayBuilder reflectionArray = buildReflectionArray(serializableClasses, lambdasByDeclaringClass);
+        final JsonArrayBuilder reflectionArray = buildReflectionArray(lambdasByDeclaringClass);
         if (!reflectionArray.isEmpty()) {
             root.put("reflection", reflectionArray);
         }
         try (StringWriter writer = new StringWriter()) {
             root.appendTo(writer);
-            serializationConfig.produce(new GeneratedResourceBuildItem(
-                    "META-INF/native-image/serialization/reachability-metadata.json",
+            lambdaReflectionConfig.produce(new GeneratedResourceBuildItem(
+                    "META-INF/native-image/lambda/reachability-metadata.json",
                     writer.toString().getBytes(StandardCharsets.UTF_8)));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private JsonArrayBuilder buildReflectionArray(Set<String> serializableClasses,
+    private JsonArrayBuilder buildReflectionArray(
             Map<String, Set<LambdaReflectionBuildItem>> lambdasByDeclaringClass) {
         final JsonArrayBuilder reflectionArray = Json.array();
-        // regular serializable classes
-        for (String serializableClass : serializableClasses) {
-            reflectionArray.add(Json.object()
-                    .put("type", serializableClass)
-                    .put("serializable", true));
-        }
         // lambda metadata for each declaring class
         for (Map.Entry<String, Set<LambdaReflectionBuildItem>> entry : lambdasByDeclaringClass.entrySet()) {
             final String declaringClass = entry.getKey();
@@ -97,7 +84,7 @@ public class NativeImageSerializationConfigStep {
                 final JsonObjectBuilder lambdaObj = Json.object();
                 final JsonObjectBuilder lambdaDescriptor = Json.object();
                 lambdaDescriptor.put("declaringClass", lambda.getDeclaringClass());
-                if (lambda.getDeclaringMethod() != null && !lambda.getDeclaringMethod().isEmpty()) {
+                if (!lambda.getDeclaringMethod().isEmpty()) {
                     final JsonObjectBuilder declaringMethodObj = Json.object();
                     declaringMethodObj.put("name", lambda.getDeclaringMethod());
                     final JsonArrayBuilder paramTypesArray = Json.array();

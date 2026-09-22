@@ -1,5 +1,6 @@
 package io.quarkus.deployment.builditem.nativeimage;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 import io.quarkus.builder.item.MultiBuildItem;
@@ -47,6 +48,30 @@ public final class LambdaReflectionBuildItem extends MultiBuildItem {
 
     public String[] getInterfaces() {
         return interfaces;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        // LambdaReflectionBuildItem class is final...
+        if (!(o instanceof LambdaReflectionBuildItem that)) {
+            return false;
+        }
+        return declaringClass.equals(that.declaringClass) &&
+                declaringMethod.equals(that.declaringMethod) &&
+                Arrays.equals(parameterTypes, that.parameterTypes) &&
+                Arrays.equals(interfaces, that.interfaces);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = declaringClass.hashCode();
+        result = 31 * result + declaringMethod.hashCode();
+        result = 31 * result + Arrays.hashCode(parameterTypes);
+        result = 31 * result + Arrays.hashCode(interfaces);
+        return result;
     }
 
     public static final class Builder {
